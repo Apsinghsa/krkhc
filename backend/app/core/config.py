@@ -3,10 +3,20 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # Database
+    # Database - will be overridden by Railway's DATABASE_URL
+    # Railway provides postgresql:// but we need postgresql+asyncpg://
     database_url: str = (
         "postgresql+asyncpg://aegis_user:aegis_pass@localhost:5432/aegis_db"
     )
+
+    @property
+    def async_database_url(self) -> str:
+        """Ensure database URL uses asyncpg driver."""
+        url = self.database_url
+        # Replace postgresql:// with postgresql+asyncpg:// if needed
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
 
     # Redis
     redis_url: str = "redis://localhost:6379"
