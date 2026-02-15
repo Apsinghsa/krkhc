@@ -1,18 +1,33 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import get_settings
 from app.core.storage import UPLOAD_DIR
 from app.api import auth, users, grievances, courses, opportunities, files
+from app.db.database import engine, Base
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Create database tables on startup."""
+    # Create tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("✅ Database tables created")
+    yield
+    # Cleanup (if needed)
+
 
 app = FastAPI(
     title=settings.app_name,
     description="AEGIS Platform - Unified Digital Citadel for IIT Mandi",
     version="0.1.0",
     debug=settings.debug,
+    lifespan=lifespan,
 )
 
 # CORS configuration - support both local dev and production
