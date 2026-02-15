@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -14,10 +15,24 @@ app = FastAPI(
     debug=settings.debug,
 )
 
-# CORS middleware
+# CORS configuration - support both local dev and production
+allow_origins = ["http://localhost:3000"]  # Local development
+
+# Add Vercel production domains from environment variable
+vercel_domains = os.getenv("CORS_ORIGINS", "")
+if vercel_domains:
+    allow_origins.extend([domain.strip() for domain in vercel_domains.split(",")])
+
+# Common Vercel domain patterns (uncomment and modify as needed)
+# allow_origins.extend([
+#     "https://your-app.vercel.app",
+#     "https://your-app-git-main.vercel.app",
+#     "https://your-app-git-dev.vercel.app",
+# ])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js dev server
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

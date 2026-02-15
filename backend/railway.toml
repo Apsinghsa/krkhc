@@ -1,0 +1,19 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[phases.build]
+cmds = [
+    "pip install -r requirements.txt",
+    "python init_db.py || true"  # Initialize DB on first deploy
+]
+
+[variables]
+PYTHON_VERSION = "3.14"
+PORT = "8000"
