@@ -74,7 +74,7 @@ export const authApi = {
     email: string;
     password: string;
     role?: string;
-    display_name?: string;
+    full_name?: string;
     department?: string;
   }) => {
     const response = await apiClient.post("/auth/register", data);

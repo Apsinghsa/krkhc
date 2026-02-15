@@ -105,7 +105,7 @@ export default function RegisterPage() {
       await authApi.register({
         email: data.email,
         password: data.password,
-        display_name: data.displayName,
+        full_name: data.displayName,
         department: data.department,
         role: data.role,
       });
