@@ -1,6 +1,4 @@
 # Railway Nixpacks Configuration for Python 3.12 with uv
-# Place this file in backend/nixpacks.toml
-
 [phases.setup]
 nixPkgs = ["python312", "gcc"]
 
@@ -10,18 +8,12 @@ libs = ["libpq"]
 [phases.install]
 cmds = [
     "pip install uv",
-    "uv venv",
-    "uv pip install -e ."
-]
-
-[phases.build]
-cmds = [
-    "uv pip install --no-cache-dir -r requirements.txt || uv pip install -e ."
+    "uv venv /opt/venv",
+    ". /opt/venv/bin/activate && uv pip install asyncpg sqlalchemy[asyncio] fastapi[standard] uvicorn[standard] pydantic-settings python-jose[cryptography] passlib[bcrypt] python-multipart redis alembic python-dotenv email-validator celery"
 ]
 
 [start]
-cmd = "uv run python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+cmd = "/opt/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
 
 [variables]
 PYTHON_VERSION = "3.12"
-UV_LINK_MODE = "copy"
