@@ -240,6 +240,13 @@ export const opportunitiesApi = {
     return response.data;
   },
 
+
+
+  delete: async (id: string) => {
+    const response = await apiClient.delete(`/opportunities/${id}`);
+    return response.data;
+  },
+
   close: async (id: string) => {
     const response = await apiClient.put(`/opportunities/${id}/close`);
     return response.data;

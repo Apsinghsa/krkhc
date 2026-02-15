@@ -19,6 +19,7 @@ interface Course {
   description: string | null;
   enrollment_count: number;
   professor_name: string | null;
+  professor_id: string | null;
   semester: string;
 }
 
@@ -31,8 +32,10 @@ export default function CoursesPage() {
   const [departmentFilter, setDepartmentFilter] = useState("");
 
   useEffect(() => {
-    loadCourses();
-  }, [departmentFilter]);
+    if (user) {
+      loadCourses();
+    }
+  }, [departmentFilter, user]);
 
   const loadCourses = async () => {
     try {
@@ -45,7 +48,7 @@ export default function CoursesPage() {
       // Fetch courses and enrollments in parallel
       const [coursesjs, enrollments] = await Promise.all([
         coursesApi.list(params),
-        user?.role === "STUDENT" ? coursesApi.getMyEnrollments() : Promise.resolve([])
+        (user?.role === "STUDENT" || user?.role === "FACULTY") ? coursesApi.getMyEnrollments() : Promise.resolve([])
       ]);
 
       const enrolledIds = new Set(enrollments.map((e: any) => e.course_id));
@@ -65,11 +68,18 @@ export default function CoursesPage() {
       course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (course.description && course.description.toLowerCase().includes(searchTerm.toLowerCase()))
   ).sort((a, b) => {
-    // Sort enrolled courses first
+    // 1. Created courses (Professor)
+    const aCreated = a.professor_id === user?.id;
+    const bCreated = b.professor_id === user?.id;
+    if (aCreated && !bCreated) return -1;
+    if (!aCreated && bCreated) return 1;
+
+    // 2. Enrolled courses
     const aEnrolled = enrolledCourseIds.has(a.id);
     const bEnrolled = enrolledCourseIds.has(b.id);
     if (aEnrolled && !bEnrolled) return -1;
     if (!aEnrolled && bEnrolled) return 1;
+
     return 0;
   });
 
@@ -141,6 +151,9 @@ export default function CoursesPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex gap-2">
                       <Badge variant="secondary">{course.code}</Badge>
+                      {course.professor_id === user?.id && (
+                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Created</Badge>
+                      )}
                       {enrolledCourseIds.has(course.id) && (
                         <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Enrolled</Badge>
                       )}

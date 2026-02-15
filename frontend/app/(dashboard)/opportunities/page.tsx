@@ -1,12 +1,14 @@
 "use client";
 
+
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Search, Filter, Calendar, DollarSign, Clock } from "lucide-react";
+import { Briefcase, Search, Filter, Calendar, DollarSign, Clock, Plus } from "lucide-react";
 import Link from "next/link";
-import { opportunitiesApi } from "@/lib/api";
+import { opportunitiesApi, usersApi } from "@/lib/api";
 import { toast } from "sonner";
 
 interface Opportunity {
@@ -22,13 +24,25 @@ interface Opportunity {
 }
 
 export default function OpportunitiesPage() {
+  const router = useRouter();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     loadOpportunities();
+    checkUserRole();
   }, []);
+
+  const checkUserRole = async () => {
+    try {
+      const user = await usersApi.getMe();
+      setUserRole(user.role);
+    } catch (error) {
+      console.error("Failed to fetch user role", error);
+    }
+  };
 
   const loadOpportunities = async () => {
     try {
@@ -59,6 +73,13 @@ export default function OpportunitiesPage() {
             Find internships and research positions
           </p>
         </div>
+
+        {(userRole === "FACULTY" || userRole === "AUTHORITY" || userRole === "ADMIN") && (
+          <Button onClick={() => router.push("/opportunities/create")}>
+            <Plus className="w-4 h-4 mr-2" />
+            Post Opportunity
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -147,6 +168,6 @@ export default function OpportunitiesPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </div >
   );
 }

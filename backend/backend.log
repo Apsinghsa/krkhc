@@ -1,0 +1,21 @@
+🚀 Starting AEGIS Backend...
+
+🔧 Checking dependencies...
+warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead
+Resolved 74 packages in 1ms
+Audited 72 packages in 1ms
+
+🌐 Starting FastAPI server...
+📚 API Docs: http://localhost:8000/docs
+📖 ReDoc:    http://localhost:8000/redoc
+
+warning: The `tool.uv.dev-dependencies` field (used in `pyproject.toml`) is deprecated and will be removed in a future release; use `dependency-groups.dev` instead
+INFO:     Will watch for changes in these directories: ['/home/apsingh/Documents/krkhc_2/backend']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [164819] using WatchFiles
+INFO:     Started server process [164821]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+DEBUG: Final allow_origins: ['http://localhost:3000', 'https://aegis-protocol-krkhc.vercel.app']
+✅ Database tables created
+INFO:     127.0.0.1:37450 - "POST /api/v1/opportunities/abeab5e4-7f21-4246-aa40-e7ad581d22b3/apply HTTP/1.1" 401 Unauthorized

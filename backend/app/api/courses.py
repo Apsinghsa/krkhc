@@ -32,6 +32,9 @@ class CourseResponse(BaseModel):
     professor_id: Optional[str]
     professor_name: Optional[str]
     enrollment_count: int
+    professor_name: Optional[str]
+    enrollment_count: int
+    is_enrolled: bool = False
     created_at: str
 
     class Config:
@@ -55,7 +58,7 @@ class EnrollmentResponse(BaseModel):
     semester: str
     attendance_count: int
     total_classes: int
-    enrolled_at: str
+    enrolled_at: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -128,6 +131,17 @@ async def list_courses(
         )
         enrollment_count = len(enrollment_result.scalars().all())
 
+        # Check if current user is enrolled
+        is_enrolled = False
+        if current_user["role"] in [UserRole.STUDENT.value, UserRole.FACULTY.value]:
+             user_enrollment = await db.execute(
+                select(Enrollment).where(
+                    (Enrollment.student_id == current_user["id"])
+                    & (Enrollment.course_id == course.id)
+                )
+            )
+             is_enrolled = user_enrollment.scalar_one_or_none() is not None
+
         response_list.append(
             CourseResponse(
                 id=str(course.id),
@@ -142,6 +156,7 @@ async def list_courses(
                 if course.professor
                 else None,
                 enrollment_count=enrollment_count,
+                is_enrolled=is_enrolled,
                 created_at=course.created_at.isoformat(),
             )
         )
@@ -188,6 +203,17 @@ async def create_course(
     await db.commit()
     await db.refresh(course)
 
+    # Check if current user is enrolled
+    is_enrolled = False
+    if current_user["role"] in [UserRole.STUDENT.value, UserRole.FACULTY.value]:
+        user_enrollment = await db.execute(
+            select(Enrollment).where(
+                (Enrollment.student_id == current_user["id"])
+                & (Enrollment.course_id == course.id)
+            )
+        )
+        is_enrolled = user_enrollment.scalar_one_or_none() is not None
+
     return CourseResponse(
         id=str(course.id),
         code=course.code,
@@ -201,6 +227,34 @@ async def create_course(
         enrollment_count=0,
         created_at=course.created_at.isoformat(),
     )
+
+
+@router.get("/my/enrollments", response_model=List[EnrollmentResponse])
+async def list_my_enrollments(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List current user's course enrollments."""
+    result = await db.execute(
+        select(Enrollment)
+        .options(selectinload(Enrollment.course))
+        .where(Enrollment.student_id == current_user["id"])
+    )
+    enrollments = result.scalars().all()
+
+    return [
+        EnrollmentResponse(
+            id=str(enrollment.id),
+            course_id=str(enrollment.course_id),
+            course_name=enrollment.course.name,
+            course_code=enrollment.course.code,
+            semester=enrollment.semester,
+            attendance_count=enrollment.attendance_count,
+            total_classes=enrollment.total_classes,
+            enrolled_at=enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None,
+        )
+        for enrollment in enrollments
+    ]
 
 
 @router.get("/{course_id}", response_model=CourseResponse)
@@ -223,48 +277,72 @@ async def get_course(
             detail="Course not found",
         )
 
-    # Check access: must be professor, enrolled student, or admin
-    is_professor = str(course.professor_id) == current_user["id"]
-    is_admin = current_user["role"] == UserRole.ADMIN.value
+    try:
+        # Access control: Allow any authenticated user to view course details
+        # The frontend will handle showing/hiding Enroll/Add Resource buttons based on role/enrollment status
+        
+        # Check access: must be professor, enrolled student, or admin
+        # is_professor = str(course.professor_id) == current_user["id"]
+        # is_admin = current_user["role"] == UserRole.ADMIN.value
 
-    # Check if student is enrolled
-    is_enrolled = False
-    if current_user["role"] == UserRole.STUDENT.value:
+        # # Check if student is enrolled
+        # is_enrolled = False
+        # if current_user["role"] == UserRole.STUDENT.value:
+        #     enrollment_result = await db.execute(
+        #         select(Enrollment).where(
+        #             (Enrollment.student_id == current_user["id"])
+        #             & (Enrollment.course_id == course_id)
+        #         )
+        #     )
+        #     is_enrolled = enrollment_result.scalar_one_or_none() is not None
+
+        # if not (is_professor or is_enrolled or is_admin):
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="You must be enrolled in this course to view details",
+        #     )
+
+        # Get enrollment count
         enrollment_result = await db.execute(
-            select(Enrollment).where(
-                (Enrollment.student_id == current_user["id"])
-                & (Enrollment.course_id == course_id)
+            select(Enrollment).where(Enrollment.course_id == course.id)
+        )
+        enrollment_count = len(enrollment_result.scalars().all())
+
+        # Check if current user is enrolled
+        is_enrolled = False
+        if current_user["role"] in [UserRole.STUDENT.value, UserRole.FACULTY.value]:
+             user_enrollment = await db.execute(
+                select(Enrollment).where(
+                    (Enrollment.student_id == current_user["id"])
+                    & (Enrollment.course_id == course.id)
+                )
             )
-        )
-        is_enrolled = enrollment_result.scalar_one_or_none() is not None
+             is_enrolled = user_enrollment.scalar_one_or_none() is not None
 
-    if not (is_professor or is_enrolled or is_admin):
+        return CourseResponse(
+            id=str(course.id),
+            code=str(course.code),
+            name=str(course.name),
+            credits=course.credits,
+            semester=str(course.semester),
+            department=str(course.department),
+            description=str(course.description) if course.description else None,
+            professor_id=str(course.professor_id) if course.professor_id else None,
+            professor_name=str(course.professor.display_name) if course.professor else None,
+            enrollment_count=enrollment_count,
+            is_enrolled=is_enrolled,
+            created_at=course.created_at.isoformat()
+            if hasattr(course.created_at, "isoformat")
+            else str(course.created_at),
+        )
+    except Exception as e:
+        print(f"Error in get_course: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You must be enrolled in this course to view details",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Server Error: {str(e)}",
         )
-
-    # Get enrollment count
-    enrollment_result = await db.execute(
-        select(Enrollment).where(Enrollment.course_id == course.id)
-    )
-    enrollment_count = len(enrollment_result.scalars().all())
-
-    return CourseResponse(
-        id=str(course.id),
-        code=str(course.code),
-        name=str(course.name),
-        credits=course.credits,
-        semester=str(course.semester),
-        department=str(course.department),
-        description=str(course.description) if course.description else None,
-        professor_id=str(course.professor_id) if course.professor_id else None,
-        professor_name=str(course.professor.display_name) if course.professor else None,
-        enrollment_count=enrollment_count,
-        created_at=course.created_at.isoformat()
-        if hasattr(course.created_at, "isoformat")
-        else str(course.created_at),
-    )
 
 
 @router.post("/{course_id}/enroll")
@@ -274,11 +352,11 @@ async def enroll_in_course(
     db: AsyncSession = Depends(get_db),
 ):
     """Enroll current user in a course."""
-    # Only students can enroll
-    if current_user["role"] != UserRole.STUDENT.value:
+    # Valid roles: Student and Faculty
+    if current_user["role"] not in [UserRole.STUDENT.value, UserRole.FACULTY.value]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only students can enroll in courses",
+            detail="Only students and faculty can enroll in courses",
         )
 
     # Check if course exists
@@ -468,29 +546,4 @@ async def list_course_calendar(
     ]
 
 
-@router.get("/my/enrollments", response_model=List[EnrollmentResponse])
-async def list_my_enrollments(
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """List current user's course enrollments."""
-    result = await db.execute(
-        select(Enrollment)
-        .options(selectinload(Enrollment.course))
-        .where(Enrollment.student_id == current_user["id"])
-    )
-    enrollments = result.scalars().all()
 
-    return [
-        EnrollmentResponse(
-            id=str(enrollment.id),
-            course_id=str(enrollment.course_id),
-            course_name=enrollment.course.name,
-            course_code=enrollment.course.code,
-            semester=enrollment.semester,
-            attendance_count=enrollment.attendance_count,
-            total_classes=enrollment.total_classes,
-            enrolled_at=enrollment.enrolled_at.isoformat(),
-        )
-        for enrollment in enrollments
-    ]

@@ -45,6 +45,8 @@ class OpportunityResponse(BaseModel):
     deadline: str
     is_open: bool
     created_at: str
+    is_applied: bool = False
+    application_status: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -219,6 +221,200 @@ async def create_opportunity(
     )
 
 
+@router.get("/my/applications", response_model=List[ApplicationResponse])
+async def list_my_applications(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List current user's applications."""
+    try:
+        result = await db.execute(
+            select(Application)
+            .options(
+                selectinload(Application.opportunity), selectinload(Application.student)
+            )
+            .where(Application.student_id == current_user["id"])
+            .order_by(desc(Application.applied_at))
+        )
+        applications = result.scalars().all()
+
+        return [
+            ApplicationResponse(
+                id=str(app.id),
+                opportunity_id=str(app.opportunity_id),
+                opportunity_title=app.opportunity.title if app.opportunity else "Unknown Opportunity",
+                student_id=str(app.student_id),
+                student_name=app.student.display_name if app.student else "Unknown",
+                status=app.status.value if hasattr(app.status, "value") else str(app.status),
+                cover_letter=app.cover_letter,
+                applied_at=app.applied_at.isoformat(),
+            )
+            for app in applications
+        ]
+    except Exception as e:
+        print(f"Error in list_my_applications: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Server Error: {str(e)}",
+        )
+
+
+# Task Manager (Scholar's Ledger)
+@router.get("/my/tasks", response_model=List[TaskResponse])
+async def list_my_tasks(
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List current user's tasks."""
+    query = select(Task).where(Task.student_id == current_user["id"])
+
+    if status:
+        try:
+            task_status = TaskStatus(status)
+            query = query.where(Task.status == task_status)
+        except ValueError:
+            pass
+
+    result = await db.execute(query.order_by(desc(Task.created_at)))
+    tasks = result.scalars().all()
+
+    return [
+        TaskResponse(
+            id=str(task.id),
+            student_id=str(task.student_id),
+            title=task.title,
+            description=task.description,
+            category=task.category,
+            deadline=task.deadline.isoformat() if task.deadline else None,
+            status=task.status.value,
+            progress=task.progress,
+            created_at=task.created_at.isoformat(),
+            updated_at=task.updated_at.isoformat(),
+        )
+        for task in tasks
+    ]
+
+
+@router.post(
+    "/my/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED
+)
+async def create_task(
+    task_data: TaskCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new task."""
+    task = Task(
+        student_id=current_user["id"],
+        title=task_data.title,
+        description=task_data.description,
+        category=task_data.category,
+        deadline=task_data.deadline,
+        status=TaskStatus.PENDING,
+        progress=0,
+    )
+
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+
+    return TaskResponse(
+        id=str(task.id),
+        student_id=str(task.student_id),
+        title=task.title,
+        description=task.description,
+        category=task.category,
+        deadline=task.deadline.isoformat() if task.deadline else None,
+        status=task.status.value,
+        progress=task.progress,
+        created_at=task.created_at.isoformat(),
+        updated_at=task.updated_at.isoformat(),
+    )
+
+
+@router.put("/my/tasks/{task_id}", response_model=TaskResponse)
+async def update_task(
+    task_id: str,
+    task_data: TaskUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a task."""
+    result = await db.execute(
+        select(Task).where(
+            (Task.id == task_id) & (Task.student_id == current_user["id"])
+        )
+    )
+    task = result.scalar_one_or_none()
+
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+
+    # Update fields
+    if task_data.title is not None:
+        task.title = task_data.title
+    if task_data.description is not None:
+        task.description = task_data.description
+    if task_data.progress is not None:
+        task.progress = max(0, min(100, task_data.progress))
+    if task_data.status is not None:
+        try:
+            task.status = TaskStatus(task_data.status)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status. Must be one of: {[s.value for s in TaskStatus]}",
+            )
+
+    await db.commit()
+    await db.refresh(task)
+
+    return TaskResponse(
+        id=str(task.id),
+        student_id=str(task.student_id),
+        title=task.title,
+        description=task.description,
+        category=task.category,
+        deadline=task.deadline.isoformat() if task.deadline else None,
+        status=task.status.value,
+        progress=task.progress,
+        created_at=task.created_at.isoformat(),
+        updated_at=task.updated_at.isoformat(),
+    )
+
+
+@router.delete("/my/tasks/{task_id}")
+async def delete_task(
+    task_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a task."""
+    result = await db.execute(
+        select(Task).where(
+            (Task.id == task_id) & (Task.student_id == current_user["id"])
+        )
+    )
+    task = result.scalar_one_or_none()
+
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+
+    await db.delete(task)
+    await db.commit()
+
+    return {"message": "Task deleted successfully"}
+
+
 @router.get("/{opportunity_id}", response_model=OpportunityResponse)
 async def get_opportunity(
     opportunity_id: str,
@@ -226,10 +422,81 @@ async def get_opportunity(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a specific opportunity by ID."""
+    try:
+        result = await db.execute(
+            select(Opportunity)
+            .options(selectinload(Opportunity.faculty))
+            .where(Opportunity.id == opportunity_id)
+        )
+        opportunity = result.scalar_one_or_none()
+
+        if not opportunity:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Opportunity not found",
+            )
+
+        # Check if current user has applied
+        is_applied = False
+        application_status = None
+
+        if current_user["role"] == "STUDENT":
+            app_result = await db.execute(
+                select(Application).where(
+                    (Application.opportunity_id == opportunity_id)
+                    & (Application.student_id == current_user["id"])
+                )
+            )
+            application = app_result.scalar_one_or_none()
+            if application:
+                is_applied = True
+                application_status = application.status.value if hasattr(application.status, "value") else str(application.status)
+
+        return OpportunityResponse(
+            id=str(opportunity.id),
+            title=str(opportunity.title),
+            description=str(opportunity.description),
+            type=str(opportunity.type.value)
+            if hasattr(opportunity.type, "value")
+            else str(opportunity.type),
+            faculty_id=str(opportunity.faculty_id),
+            faculty_name=str(opportunity.faculty.display_name)
+            if opportunity.faculty
+            else "Unknown",
+            skills=list(opportunity.skills) if opportunity.skills else [],
+            duration=str(opportunity.duration),
+            stipend=str(opportunity.stipend) if opportunity.stipend else None,
+            deadline=opportunity.deadline.isoformat()
+            if hasattr(opportunity.deadline, "isoformat")
+            else str(opportunity.deadline),
+            is_open=bool(opportunity.is_open),
+            created_at=opportunity.created_at.isoformat()
+            if hasattr(opportunity.created_at, "isoformat")
+            else str(opportunity.created_at),
+            is_applied=is_applied,
+            application_status=application_status,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in get_opportunity: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Server Error: {str(e)}",
+        )
+
+
+@router.delete("/{opportunity_id}")
+async def delete_opportunity(
+    opportunity_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete an opportunity (faculty owner or admin only)."""
     result = await db.execute(
-        select(Opportunity)
-        .options(selectinload(Opportunity.faculty))
-        .where(Opportunity.id == opportunity_id)
+        select(Opportunity).where(Opportunity.id == opportunity_id)
     )
     opportunity = result.scalar_one_or_none()
 
@@ -239,28 +506,20 @@ async def get_opportunity(
             detail="Opportunity not found",
         )
 
-    return OpportunityResponse(
-        id=str(opportunity.id),
-        title=str(opportunity.title),
-        description=str(opportunity.description),
-        type=str(opportunity.type.value)
-        if hasattr(opportunity.type, "value")
-        else str(opportunity.type),
-        faculty_id=str(opportunity.faculty_id),
-        faculty_name=str(opportunity.faculty.display_name)
-        if opportunity.faculty
-        else "Unknown",
-        skills=list(opportunity.skills) if opportunity.skills else [],
-        duration=str(opportunity.duration),
-        stipend=str(opportunity.stipend) if opportunity.stipend else None,
-        deadline=opportunity.deadline.isoformat()
-        if hasattr(opportunity.deadline, "isoformat")
-        else str(opportunity.deadline),
-        is_open=bool(opportunity.is_open),
-        created_at=opportunity.created_at.isoformat()
-        if hasattr(opportunity.created_at, "isoformat")
-        else str(opportunity.created_at),
-    )
+    # Only the faculty who created it or admin can delete it
+    if (
+        opportunity.faculty_id != current_user["id"]
+        and current_user["role"] != UserRole.ADMIN.value
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this opportunity",
+        )
+
+    await db.delete(opportunity)
+    await db.commit()
+
+    return {"message": "Opportunity deleted successfully"}
 
 
 @router.put("/{opportunity_id}/close")
@@ -330,7 +589,7 @@ async def apply_to_opportunity(
             detail="This opportunity is closed",
         )
 
-    if opportunity.deadline < date.today():
+    if opportunity.deadline.date() < date.today():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Application deadline has passed",
@@ -491,186 +750,4 @@ async def update_application_status(
     )
 
 
-@router.get("/my/applications", response_model=List[ApplicationResponse])
-async def list_my_applications(
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """List current user's applications."""
-    result = await db.execute(
-        select(Application)
-        .options(
-            selectinload(Application.opportunity), selectinload(Application.student)
-        )
-        .where(Application.student_id == current_user["id"])
-        .order_by(desc(Application.applied_at))
-    )
-    applications = result.scalars().all()
 
-    return [
-        ApplicationResponse(
-            id=str(app.id),
-            opportunity_id=str(app.opportunity_id),
-            opportunity_title=app.opportunity.title,
-            student_id=str(app.student_id),
-            student_name=app.student.display_name if app.student else "Unknown",
-            status=app.status.value,
-            cover_letter=app.cover_letter,
-            applied_at=app.applied_at.isoformat(),
-        )
-        for app in applications
-    ]
-
-
-# Task Manager (Scholar's Ledger)
-@router.get("/my/tasks", response_model=List[TaskResponse])
-async def list_my_tasks(
-    status: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """List current user's tasks."""
-    query = select(Task).where(Task.student_id == current_user["id"])
-
-    if status:
-        try:
-            task_status = TaskStatus(status)
-            query = query.where(Task.status == task_status)
-        except ValueError:
-            pass
-
-    result = await db.execute(query.order_by(desc(Task.created_at)))
-    tasks = result.scalars().all()
-
-    return [
-        TaskResponse(
-            id=str(task.id),
-            student_id=str(task.student_id),
-            title=task.title,
-            description=task.description,
-            category=task.category,
-            deadline=task.deadline.isoformat() if task.deadline else None,
-            status=task.status.value,
-            progress=task.progress,
-            created_at=task.created_at.isoformat(),
-            updated_at=task.updated_at.isoformat(),
-        )
-        for task in tasks
-    ]
-
-
-@router.post(
-    "/my/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED
-)
-async def create_task(
-    task_data: TaskCreate,
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Create a new task."""
-    task = Task(
-        student_id=current_user["id"],
-        title=task_data.title,
-        description=task_data.description,
-        category=task_data.category,
-        deadline=task_data.deadline,
-        status=TaskStatus.PENDING,
-        progress=0,
-    )
-
-    db.add(task)
-    await db.commit()
-    await db.refresh(task)
-
-    return TaskResponse(
-        id=str(task.id),
-        student_id=str(task.student_id),
-        title=task.title,
-        description=task.description,
-        category=task.category,
-        deadline=task.deadline.isoformat() if task.deadline else None,
-        status=task.status.value,
-        progress=task.progress,
-        created_at=task.created_at.isoformat(),
-        updated_at=task.updated_at.isoformat(),
-    )
-
-
-@router.put("/my/tasks/{task_id}", response_model=TaskResponse)
-async def update_task(
-    task_id: str,
-    task_data: TaskUpdate,
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Update a task."""
-    result = await db.execute(
-        select(Task).where(
-            (Task.id == task_id) & (Task.student_id == current_user["id"])
-        )
-    )
-    task = result.scalar_one_or_none()
-
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
-
-    # Update fields
-    if task_data.title is not None:
-        task.title = task_data.title
-    if task_data.description is not None:
-        task.description = task_data.description
-    if task_data.progress is not None:
-        task.progress = max(0, min(100, task_data.progress))
-    if task_data.status is not None:
-        try:
-            task.status = TaskStatus(task_data.status)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid status. Must be one of: {[s.value for s in TaskStatus]}",
-            )
-
-    await db.commit()
-    await db.refresh(task)
-
-    return TaskResponse(
-        id=str(task.id),
-        student_id=str(task.student_id),
-        title=task.title,
-        description=task.description,
-        category=task.category,
-        deadline=task.deadline.isoformat() if task.deadline else None,
-        status=task.status.value,
-        progress=task.progress,
-        created_at=task.created_at.isoformat(),
-        updated_at=task.updated_at.isoformat(),
-    )
-
-
-@router.delete("/my/tasks/{task_id}")
-async def delete_task(
-    task_id: str,
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Delete a task."""
-    result = await db.execute(
-        select(Task).where(
-            (Task.id == task_id) & (Task.student_id == current_user["id"])
-        )
-    )
-    task = result.scalar_one_or_none()
-
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
-
-    await db.delete(task)
-    await db.commit()
-
-    return {"message": "Task deleted successfully"}
