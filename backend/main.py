@@ -16,15 +16,20 @@ app = FastAPI(
 )
 
 # CORS configuration - support both local dev and production
-allow_origins = ["http://localhost:3000"]  # Local development
+allow_origins = [
+    "http://localhost:3000",  # Local development
+    "https://aegis-protocol-krkhc.vercel.app",  # Production Vercel frontend
+]
 
 # Add Vercel production domains from environment variable
 vercel_domains = os.getenv("CORS_ORIGINS", "")
 if vercel_domains:
     # Parse comma-separated domains and strip whitespace
     domains = [domain.strip() for domain in vercel_domains.split(",") if domain.strip()]
-    allow_origins.extend(domains)
-    print(f"DEBUG: Added CORS domains: {domains}")
+    for domain in domains:
+        if domain not in allow_origins:
+            allow_origins.append(domain)
+    print(f"DEBUG: Added CORS domains from env: {domains}")
 
 print(f"DEBUG: Final allow_origins: {allow_origins}")
 
