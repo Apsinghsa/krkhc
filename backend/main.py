@@ -21,14 +21,12 @@ allow_origins = ["http://localhost:3000"]  # Local development
 # Add Vercel production domains from environment variable
 vercel_domains = os.getenv("CORS_ORIGINS", "")
 if vercel_domains:
-    allow_origins.extend([domain.strip() for domain in vercel_domains.split(",")])
+    # Parse comma-separated domains and strip whitespace
+    domains = [domain.strip() for domain in vercel_domains.split(",") if domain.strip()]
+    allow_origins.extend(domains)
+    print(f"DEBUG: Added CORS domains: {domains}")
 
-# Common Vercel domain patterns (uncomment and modify as needed)
-# allow_origins.extend([
-#     "https://your-app.vercel.app",
-#     "https://your-app-git-main.vercel.app",
-#     "https://your-app-git-dev.vercel.app",
-# ])
+print(f"DEBUG: Final allow_origins: {allow_origins}")
 
 app.add_middleware(
     CORSMiddleware,
