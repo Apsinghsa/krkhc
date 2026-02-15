@@ -1,6 +1,0 @@
-============================================================
-= AEGIS Platform - Database Seeding Script
-============================================================
---- Resetting database...
-DEBUG: Calling engine.begin()
-OPENSSL_Uplink(00007FFD58439C60,08): no OPENSSL_Applink

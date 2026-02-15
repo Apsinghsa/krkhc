@@ -21,6 +21,7 @@
 /build
 
 # misc
+app/alembic/
 .DS_Store
 *.pem
 
