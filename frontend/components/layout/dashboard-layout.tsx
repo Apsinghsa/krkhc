@@ -16,6 +16,7 @@ import {
   ChevronRight,
   UserCircle,
   Calendar,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,8 +32,8 @@ const navItems: NavItem[] = [
   { label: "Grievances", href: "/grievances", icon: MessageSquare },
   { label: "Courses", href: "/courses", icon: BookOpen },
   { label: "Calendar", href: "/calendar", icon: Calendar },
+  { label: "Noticeboard", href: "/noticeboard", icon: Megaphone },
   { label: "Opportunities", href: "/opportunities", icon: Briefcase },
-  { label: "Profile", href: "/profile", icon: UserCircle },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {

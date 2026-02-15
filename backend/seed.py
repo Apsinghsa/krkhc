@@ -109,16 +109,24 @@ TEST_USERS = [
 
 async def reset_database():
     """Drop all tables and recreate them."""
-    print("🗑️  Resetting database...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-    print("✅ Database reset complete")
+    print("--- Resetting database...")
+    print("DEBUG: Calling engine.begin()")
+    try:
+        async with engine.begin() as conn:
+            print("DEBUG: Entered engine.begin() context")
+            await conn.run_sync(Base.metadata.drop_all)
+            print("DEBUG: Dropped tables")
+            await conn.run_sync(Base.metadata.create_all)
+            print("DEBUG: Created tables")
+    except Exception as e:
+        print(f"DEBUG: Exception in reset_database: {e}")
+        raise
+    print("Done. Database reset complete")
 
 
 async def create_test_users():
     """Create test user accounts."""
-    print("\n👥 Creating test users...")
+    print("\n--- Creating test users...")
 
     async for db in get_db():
         users = []
@@ -130,7 +138,7 @@ async def create_test_users():
             existing = result.scalar_one_or_none()
 
             if existing:
-                print(f"  ⚠️  User {user_data['email']} already exists")
+                print(f"  Warning: User {user_data['email']} already exists")
                 users.append(existing)
                 continue
 
@@ -146,7 +154,7 @@ async def create_test_users():
             db.add(user)
             await db.flush()  # Flush to get the ID
             users.append(user)
-            print(f"  ✅ Created {user_data['role'].value}: {user_data['email']}")
+            print(f"  Created {user_data['role'].value}: {user_data['email']}")
 
         await db.commit()
         return users
@@ -154,13 +162,13 @@ async def create_test_users():
 
 async def create_sample_courses(users):
     """Create sample courses for multiple faculty."""
-    print("\n📚 Creating sample courses...")
+    print("\n--- Creating sample courses...")
 
     async for db in get_db():
         # Get all faculty users
         faculties = [u for u in users if u.role == UserRole.FACULTY]
         if not faculties:
-            print("  ⚠️  No faculty users found, skipping courses")
+            print("  Warning: No faculty users found, skipping courses")
             return []
 
         courses_data = [
@@ -220,7 +228,7 @@ async def create_sample_courses(users):
             await db.flush()
             courses.append(course)
             print(
-                f"  ✅ Created course: {course_data['code']} - {course_data['name']} (by {professor.display_name})"
+                f"  Created course: {course_data['code']} - {course_data['name']} (by {professor.display_name})"
             )
 
         await db.commit()
@@ -229,12 +237,12 @@ async def create_sample_courses(users):
 
 async def create_sample_grievances(users):
     """Create sample grievances from multiple students."""
-    print("\n🎫 Creating sample grievances...")
+    print("\n--- Creating sample grievances...")
 
     async for db in get_db():
         students = [u for u in users if u.role == UserRole.STUDENT]
         if not students:
-            print("  ⚠️  No student users found, skipping grievances")
+            print("  Warning: No student users found, skipping grievances")
             return []
 
         grievances_data = [
@@ -319,7 +327,7 @@ async def create_sample_grievances(users):
                 else "Anonymous"
             )
             print(
-                f"  ✅ Created grievance: {grievance_data['title'][:50]}... (by {submitter_info})"
+                f"  Created grievance: {grievance_data['title'][:50]}... (by {submitter_info})"
             )
 
         await db.commit()
@@ -327,7 +335,7 @@ async def create_sample_grievances(users):
 
 async def create_sample_opportunities(users):
     """Create sample opportunities from multiple faculty and authority."""
-    print("\n💼 Creating sample opportunities...")
+    print("\n--- Creating sample opportunities...")
 
     async for db in get_db():
         faculties = [u for u in users if u.role == UserRole.FACULTY]
@@ -335,7 +343,7 @@ async def create_sample_opportunities(users):
         students = [u for u in users if u.role == UserRole.STUDENT]
 
         if not faculties or not authorities:
-            print("  ⚠️  Faculty or Authority users not found, skipping opportunities")
+            print("  Warning: Faculty or Authority users not found, skipping opportunities")
             return
 
         opportunities_data = [
@@ -414,7 +422,7 @@ async def create_sample_opportunities(users):
             db.add(opportunity)
             await db.flush()
             print(
-                f"  ✅ Created opportunity: {opp_data['title']} (by {creator.display_name})"
+                f"  Created opportunity: {opp_data['title']} (by {creator.display_name})"
             )
 
             # Create sample applications from both students
@@ -428,19 +436,19 @@ async def create_sample_opportunities(users):
                     cover_letter=f"I am very interested in this {opp_data['type'].value.lower()} position. I have relevant experience in {', '.join(opp_data['skills'][:2])} and am eager to contribute.",
                 )
                 db.add(application)
-                print(f"    📝 Created application from {student.display_name}")
+                print(f"    Created application from {student.display_name}")
 
         await db.commit()
 
 
 async def create_sample_tasks(users):
     """Create sample tasks for multiple students."""
-    print("\n✅ Creating sample tasks...")
+    print("\n--- Creating sample tasks...")
 
     async for db in get_db():
         students = [u for u in users if u.role == UserRole.STUDENT]
         if not students:
-            print("  ⚠️  No student users found, skipping tasks")
+            print("  Warning: No student users found, skipping tasks")
             return
 
         # Tasks for student1 (Rahul)
@@ -507,8 +515,90 @@ async def create_sample_tasks(users):
                 task = Task(student_id=student.id, **task_data)
                 db.add(task)
                 print(
-                    f"  ✅ Created task: {task_data['title']} (for {student.display_name})"
+                    f"  Created task: {task_data['title']} (for {student.display_name})"
                 )
+
+        await db.commit()
+
+
+async def create_sample_calendar_events(users):
+    """Create sample calendar events for courses."""
+    print("\n--- Creating sample calendar events...")
+
+    async for db in get_db():
+        # Get all courses
+        result = await db.execute(select(Course))
+        courses = result.scalars().all()
+        
+        if not courses:
+            print("  Warning: No courses found, skipping calendar events")
+            return
+
+        # Define some common event templates
+        event_types = ["Lecture", "Lab", "Quiz", "Assignment Due", "Exam"]
+        
+        for course in courses:
+            # Create a regular lecture schedule
+            # Let's say this course has 2 lectures a week for the next 4 weeks
+            base_date = datetime.now()
+            
+            # Determine days based on course code parity to spread them out
+            days_offset = 0 if len(course.code) % 2 == 0 else 1
+            
+            events_data = []
+            
+            # 1. Lectures (Recurring)
+            for week in range(4):
+                # Lecture 1
+                lecture_date = base_date + timedelta(weeks=week, days=days_offset)
+                events_data.append({
+                    "title": f"Lecture: {course.name}",
+                    "description": f"Regular scheduled lecture for {course.code}",
+                    "event_type": "Lecture",
+                    "start_date": lecture_date.replace(hour=10, minute=0, second=0, microsecond=0),
+                    "end_date": lecture_date.replace(hour=11, minute=30, second=0, microsecond=0),
+                    "created_by": "System",
+                })
+                
+                # Lecture 2 (2 days later)
+                lecture_date_2 = base_date + timedelta(weeks=week, days=days_offset + 2)
+                events_data.append({
+                    "title": f"Lecture: {course.name}",
+                    "description": f"Regular scheduled lecture for {course.code}",
+                    "event_type": "Lecture",
+                    "start_date": lecture_date_2.replace(hour=10, minute=0, second=0, microsecond=0),
+                    "end_date": lecture_date_2.replace(hour=11, minute=30, second=0, microsecond=0),
+                    "created_by": "System",
+                })
+
+            # 2. Assignment Due
+            due_date = base_date + timedelta(days=14)
+            events_data.append({
+                "title": f"Assignment 1 Due",
+                "description": f"First assignment submission for {course.code}",
+                "event_type": "Assignment",
+                "start_date": due_date.replace(hour=23, minute=59, second=0, microsecond=0),
+                "end_date": due_date.replace(hour=23, minute=59, second=0, microsecond=0),
+                "created_by": "System",
+            })
+            
+            # 3. Quiz
+            quiz_date = base_date + timedelta(days=21) 
+            events_data.append({
+                "title": f"Quiz 1",
+                "description": f"First quiz covering initial chapters of {course.code}",
+                "event_type": "Exam",
+                "start_date": quiz_date.replace(hour=14, minute=0, second=0, microsecond=0),
+                "end_date": quiz_date.replace(hour=15, minute=0, second=0, microsecond=0),
+                "created_by": "System",
+            })
+
+            for event_data in events_data:
+                event = CalendarEvent(course_id=course.id, **event_data)
+                db.add(event)
+                # await db.flush()
+            
+            print(f"  Created {len(events_data)} calendar events for {course.code}")
 
         await db.commit()
 
@@ -516,7 +606,7 @@ async def create_sample_tasks(users):
 async def seed_database():
     """Main seeding function."""
     print("=" * 60)
-    print("🌱 AEGIS Platform - Database Seeding Script")
+    print("= AEGIS Platform - Database Seeding Script")
     print("=" * 60)
 
     try:
@@ -531,27 +621,28 @@ async def seed_database():
         await create_sample_grievances(users)
         await create_sample_opportunities(users)
         await create_sample_tasks(users)
+        await create_sample_calendar_events(users)
 
         print("\n" + "=" * 60)
-        print("✅ Seeding completed successfully!")
+        print("Seeding completed successfully!")
         print("=" * 60)
-        print("\n📋 Test Accounts Created:")
+        print("\nTest Accounts Created:")
         print("-" * 60)
         for user in TEST_USERS:
             print(
                 f"  Role: {user['role'].value:10} | Email: {user['email']:<35} | Password: {user['password']}"
             )
         print("-" * 60)
-        print("\n🚀 You can now login with any of these accounts!")
+        print("\nYou can now login with any of these accounts!")
         print("   API: http://localhost:8000")
         print("   Frontend: http://localhost:3000")
-        print("\n📝 Next steps:")
+        print("\nNext steps:")
         print("   1. Start backend: cd backend && ./start.sh")
         print("   2. Start frontend: cd frontend && npm run dev")
         print("   3. Login with test accounts and explore!")
 
     except Exception as e:
-        print(f"\n❌ Error during seeding: {e}")
+        print(f"\nError during seeding: {e}")
         import traceback
 
         traceback.print_exc()

@@ -1,0 +1,80 @@
+﻿============================================================
+d:\ai\aegis\krkhc\backend\
+.venv\Scripts\python.exe 
+: Traceback (most recent 
+call last):
+At line:1 char:11
++ ='utf-8'; d:\ai\aegis\kr
+khc\backend\.venv\Scripts\
+python.exe seed.py  ...
++           ~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (T  
+  raceback (most recent   
+  call last)::String)     
+[], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+  File "D:\ai\aegis\krkhc\
+backend\seed.py", line 
+645, in <module>
+    asyncio.run(seed_datab
+ase())
+    ~~~~~~~~~~~^^^^^^^^^^^
+^^^^^^
+  File "C:\Users\Lenovo\Ap
+pData\Roaming\uv\python\cp
+ython-3.14.2-windows-x86_6
+4-none\Lib\asyncio\runners
+.py", line 204, in run
+    return 
+runner.run(main)
+           
+~~~~~~~~~~^^^^^^
+  File "C:\Users\Lenovo\Ap
+pData\Roaming\uv\python\cp
+ython-3.14.2-windows-x86_6
+4-none\Lib\asyncio\runners
+.py", line 127, in run
+    return self._loop.run_
+until_complete(task)
+           ~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\Lenovo\Ap
+pData\Roaming\uv\python\cp
+ython-3.14.2-windows-x86_6
+4-none\Lib\asyncio\base_ev
+ents.py", line 719, in 
+run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\ai\aegis\krkhc\
+backend\seed.py", line 
+601, in seed_database
+    print("\U0001f331 
+AEGIS Platform - Database 
+Seeding Script")
+    ~~~~~^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^
+  File "C:\Users\Lenovo\Ap
+pData\Roaming\uv\python\cp
+ython-3.14.2-windows-x86_6
+4-none\Lib\encodings\cp125
+2.py", line 19, in encode
+    return codecs.charmap_
+encode(input,self.errors,e
+ncoding_table)[0]
+           ~~~~~~~~~~~~~~~
+~~~~~~^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^
+UnicodeEncodeError: 
+'charmap' codec can't 
+encode character 
+'\U0001f331' in position 
+0: character maps to 
+<undefined>
