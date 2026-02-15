@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Users, FileText } from "lucide-react";
+import { BookOpen, Users, FileText, Plus } from "lucide-react";
 import Link from "next/link";
 import { coursesApi } from "@/lib/api";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/auth";
 
 interface Course {
   id: string;
@@ -22,7 +23,9 @@ interface Course {
 }
 
 export default function CoursesPage() {
+  const { user } = useAuthStore();
   const [courses, setCourses] = useState<Course[]>([]);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
@@ -38,8 +41,16 @@ export default function CoursesPage() {
       if (departmentFilter) {
         params.department = departmentFilter;
       }
-      const data = await coursesApi.list(params);
-      setCourses(data);
+
+      // Fetch courses and enrollments in parallel
+      const [coursesjs, enrollments] = await Promise.all([
+        coursesApi.list(params),
+        user?.role === "STUDENT" ? coursesApi.getMyEnrollments() : Promise.resolve([])
+      ]);
+
+      const enrolledIds = new Set(enrollments.map((e: any) => e.course_id));
+      setEnrolledCourseIds(enrolledIds as Set<string>);
+      setCourses(coursesjs);
     } catch (error: any) {
       toast.error("Failed to load courses");
       console.error(error);
@@ -53,7 +64,14 @@ export default function CoursesPage() {
       course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       course.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (course.description && course.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  ).sort((a, b) => {
+    // Sort enrolled courses first
+    const aEnrolled = enrolledCourseIds.has(a.id);
+    const bEnrolled = enrolledCourseIds.has(b.id);
+    if (aEnrolled && !bEnrolled) return -1;
+    if (!aEnrolled && bEnrolled) return 1;
+    return 0;
+  });
 
   return (
     <div className="space-y-6">
@@ -64,6 +82,15 @@ export default function CoursesPage() {
             Browse courses and access study materials
           </p>
         </div>
+
+        {(user?.role === "FACULTY" || user?.role === "ADMIN") && (
+          <Link href="/courses/create">
+            <Button className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Create Course
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Search and Filter */}
@@ -112,7 +139,12 @@ export default function CoursesPage() {
               <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
-                    <Badge variant="secondary">{course.code}</Badge>
+                    <div className="flex gap-2">
+                      <Badge variant="secondary">{course.code}</Badge>
+                      {enrolledCourseIds.has(course.id) && (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Enrolled</Badge>
+                      )}
+                    </div>
                     <Badge>{course.credits} Credits</Badge>
                   </div>
                   <CardTitle className="text-lg mt-2">{course.name}</CardTitle>

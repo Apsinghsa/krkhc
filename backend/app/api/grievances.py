@@ -220,8 +220,8 @@ async def list_grievances(
         except ValueError:
             pass
 
-    # Students can only see their own grievances (unless anonymous)
-    if current_user["role"] == UserRole.STUDENT.value:
+    # Students and Faculty can only see their own grievances (unless anonymous)
+    if current_user["role"] in [UserRole.STUDENT.value, UserRole.FACULTY.value]:
         query = query.where(
             (Grievance.submitter_id == current_user["id"])
             | (Grievance.is_anonymous == True)
@@ -259,7 +259,10 @@ async def get_grievance(
 
     # Check authorization
     if current_user["role"] == UserRole.STUDENT.value:
-        if grievance.submitter_id != current_user["id"] and not grievance.is_anonymous:
+        # Allow if it's their own grievance OR if it's anonymous
+        # Note: We must cast submitter_id to string for comparison because it's a UUID in the DB model
+        is_owner = str(grievance.submitter_id) == current_user["id"]
+        if not is_owner and not grievance.is_anonymous:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to view this grievance",
@@ -278,7 +281,6 @@ async def add_grievance_update(
     """Add a status update to a grievance (faculty/authority/admin only)."""
     # Check if user can update grievances
     if current_user["role"] not in [
-        UserRole.FACULTY.value,
         UserRole.AUTHORITY.value,
         UserRole.ADMIN.value,
     ]:
