@@ -68,6 +68,7 @@ export default function LoginPage() {
       console.error("Login error:", err);
       console.error("Error response:", err.response);
       console.error("Error data:", err.response?.data);
+      console.error("Error status:", err.response?.status);
       
       // Handle different error formats from backend
       let errorMessage = "Login failed. Please try again.";
@@ -79,11 +80,15 @@ export default function LoginPage() {
           // String error message
           errorMessage = detail;
         } else if (Array.isArray(detail)) {
-          // Array of validation errors - join them
-          errorMessage = detail.map((e: any) => e.msg || JSON.stringify(e)).join(", ");
+          // Array of validation errors - show full details
+          console.error("Validation errors array:", JSON.stringify(detail, null, 2));
+          errorMessage = detail.map((e: any) => {
+            const loc = e.loc ? e.loc.join(".") : "field";
+            return `${loc}: ${e.msg || JSON.stringify(e)}`;
+          }).join("\n");
         } else if (typeof detail === "object" && detail !== null) {
           // Object error - convert to string
-          errorMessage = JSON.stringify(detail);
+          errorMessage = JSON.stringify(detail, null, 2);
         } else if (err.response.data.message) {
           // Alternative message field
           errorMessage = err.response.data.message;
@@ -96,8 +101,8 @@ export default function LoginPage() {
       console.error("Final error message:", errorMessage);
       setError(errorMessage);
       
-      // Temporary: Show alert so error is visible before any reload
-      window.alert("Login Error: " + errorMessage);
+      // Show detailed alert
+      window.alert("Login Error (Status " + (err.response?.status || "unknown") + "):\n\n" + errorMessage);
     } finally {
       setIsLoading(false);
     }

@@ -59,7 +59,11 @@ apiClient.interceptors.response.use(
 // Auth API
 export const authApi = {
   login: async (email: string, password: string) => {
-    const response = await apiClient.post("/auth/login", { email, password });
+    console.log("API Login - Sending:", { email, password: "***" });
+    const payload = { email, password };
+    console.log("API Login - Payload type:", typeof payload, "Keys:", Object.keys(payload));
+    const response = await apiClient.post("/auth/login", payload);
+    console.log("API Login - Response:", response.data);
     return response.data;
   },
   
