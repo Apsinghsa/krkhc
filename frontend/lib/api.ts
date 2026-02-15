@@ -27,20 +27,23 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    
-    if (error.response?.status === 401 && !originalRequest._retry) {
+
+    // Don't retry if the request was for login or refresh
+    const isAuthRequest = originalRequest.url?.includes("/auth/login") || originalRequest.url?.includes("/auth/refresh");
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
       originalRequest._retry = true;
-      
+
       try {
         const refreshToken = localStorage.getItem("refresh_token");
         const response = await axios.post(`${API_URL}/auth/refresh`, {
           refresh_token: refreshToken,
         });
-        
+
         const { access_token, refresh_token } = response.data;
         localStorage.setItem("access_token", access_token);
         localStorage.setItem("refresh_token", refresh_token);
-        
+
         originalRequest.headers.Authorization = `Bearer ${access_token}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
@@ -51,7 +54,7 @@ apiClient.interceptors.response.use(
         return Promise.reject(refreshError);
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -66,7 +69,7 @@ export const authApi = {
     console.log("API Login - Response:", response.data);
     return response.data;
   },
-  
+
   register: async (data: {
     email: string;
     password: string;
@@ -77,14 +80,14 @@ export const authApi = {
     const response = await apiClient.post("/auth/register", data);
     return response.data;
   },
-  
+
   logout: async () => {
     const refreshToken = localStorage.getItem("refresh_token");
     await apiClient.post("/auth/logout", { refresh_token: refreshToken });
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
   },
-  
+
   refresh: async (refreshToken: string) => {
     const response = await apiClient.post("/auth/refresh", {
       refresh_token: refreshToken,
@@ -99,7 +102,7 @@ export const usersApi = {
     const response = await apiClient.get("/users/me");
     return response.data;
   },
-  
+
   updateMe: async (data: {
     display_name?: string;
     department?: string;
@@ -108,7 +111,7 @@ export const usersApi = {
     const response = await apiClient.put("/users/me", data);
     return response.data;
   },
-  
+
   changePassword: async (data: {
     current_password: string;
     new_password: string;
@@ -124,12 +127,12 @@ export const grievancesApi = {
     const response = await apiClient.get("/grievances", { params });
     return response.data;
   },
-  
+
   get: async (id: string) => {
     const response = await apiClient.get(`/grievances/${id}`);
     return response.data;
   },
-  
+
   create: async (data: {
     title: string;
     description: string;
@@ -141,12 +144,12 @@ export const grievancesApi = {
     const response = await apiClient.post("/grievances", data);
     return response.data;
   },
-  
+
   addUpdate: async (id: string, data: { status: string; remark: string }) => {
     const response = await apiClient.post(`/grievances/${id}/updates`, data);
     return response.data;
   },
-  
+
   uploadPhoto: async (id: string, file: File) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -163,12 +166,12 @@ export const coursesApi = {
     const response = await apiClient.get("/courses", { params });
     return response.data;
   },
-  
+
   get: async (id: string) => {
     const response = await apiClient.get(`/courses/${id}`);
     return response.data;
   },
-  
+
   create: async (data: {
     code: string;
     name: string;
@@ -180,17 +183,17 @@ export const coursesApi = {
     const response = await apiClient.post("/courses", data);
     return response.data;
   },
-  
+
   enroll: async (id: string) => {
     const response = await apiClient.post(`/courses/${id}/enroll`);
     return response.data;
   },
-  
+
   getResources: async (id: string, params?: { type?: string }) => {
     const response = await apiClient.get(`/courses/${id}/resources`, { params });
     return response.data;
   },
-  
+
   createResource: async (id: string, data: {
     title: string;
     type: string;
@@ -201,12 +204,12 @@ export const coursesApi = {
     const response = await apiClient.post(`/courses/${id}/resources`, data);
     return response.data;
   },
-  
+
   getCalendar: async (id: string) => {
     const response = await apiClient.get(`/courses/${id}/calendar`);
     return response.data;
   },
-  
+
   getMyEnrollments: async () => {
     const response = await apiClient.get("/courses/my/enrollments");
     return response.data;
@@ -219,12 +222,12 @@ export const opportunitiesApi = {
     const response = await apiClient.get("/opportunities", { params });
     return response.data;
   },
-  
+
   get: async (id: string) => {
     const response = await apiClient.get(`/opportunities/${id}`);
     return response.data;
   },
-  
+
   create: async (data: {
     title: string;
     description: string;
@@ -236,38 +239,38 @@ export const opportunitiesApi = {
     const response = await apiClient.post("/opportunities", data);
     return response.data;
   },
-  
+
   close: async (id: string) => {
     const response = await apiClient.put(`/opportunities/${id}/close`);
     return response.data;
   },
-  
+
   apply: async (id: string, data: { cover_letter: string }) => {
     const response = await apiClient.post(`/opportunities/${id}/apply`, data);
     return response.data;
   },
-  
+
   getApplications: async (id: string) => {
     const response = await apiClient.get(`/opportunities/${id}/applications`);
     return response.data;
   },
-  
+
   updateApplicationStatus: async (applicationId: string, data: { status: string }) => {
     const response = await apiClient.put(`/opportunities/applications/${applicationId}/status`, data);
     return response.data;
   },
-  
+
   getMyApplications: async () => {
     const response = await apiClient.get("/opportunities/my/applications");
     return response.data;
   },
-  
+
   // Tasks (Scholar's Ledger)
   getMyTasks: async (params?: { status?: string }) => {
     const response = await apiClient.get("/opportunities/my/tasks", { params });
     return response.data;
   },
-  
+
   createTask: async (data: {
     title: string;
     description: string;
@@ -277,7 +280,7 @@ export const opportunitiesApi = {
     const response = await apiClient.post("/opportunities/my/tasks", data);
     return response.data;
   },
-  
+
   updateTask: async (id: string, data: {
     title?: string;
     description?: string;
@@ -287,7 +290,7 @@ export const opportunitiesApi = {
     const response = await apiClient.put(`/opportunities/my/tasks/${id}`, data);
     return response.data;
   },
-  
+
   deleteTask: async (id: string) => {
     const response = await apiClient.delete(`/opportunities/my/tasks/${id}`);
     return response.data;
