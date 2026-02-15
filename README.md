@@ -42,7 +42,7 @@ A unified digital platform for IIT Mandi that brings together students, faculty,
 
 ### Prerequisites
 - Node.js 18+ 
-- Python 3.14+
+- Python 3.11+
 - Docker & Docker Compose
 - PostgreSQL
 
