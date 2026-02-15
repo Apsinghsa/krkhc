@@ -67,6 +67,18 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install uv
 uv sync
 python init_db.py
+python init_db.py
+
+# Method 1: Using start script
+./start.sh
+
+# Method 2: Manual Start (using uv)
+# Ensure DATABASE_URL is set in .env or exported
+uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Method 3: Standard Python (using venv)
+source .venv/bin/activate
+uvicorn main:app --reload --host 0.0.0.0 --port 8000 --env-file .env
 ```
 
 4. **Setup Frontend**

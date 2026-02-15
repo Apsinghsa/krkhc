@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { authApi } from "@/lib/api";
+import { authApi, usersApi } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 
 const loginSchema = z.object({
@@ -51,17 +51,21 @@ export default function LoginPage() {
       console.log("Attempting login with:", data.email);
       const response = await authApi.login(data.email, data.password);
       console.log("Login successful");
-      
+
       // Fetch user data (in production, the login response would include user data)
       // For now, we'll create a basic user object
-      const user = {
-        id: "temp-id", // In production, decode from JWT or fetch from API
-        email: data.email,
-        role: "STUDENT", // Default role, should come from API
-        is_active: true,
-      };
+      // Store tokens immediately so subsequent requests are authenticated
+      localStorage.setItem("access_token", response.access_token);
+      localStorage.setItem("refresh_token", response.refresh_token);
 
-      login(user, response.access_token, response.refresh_token);
+      // Fetch real user data
+      console.log("Fetching user profile...");
+      const paramUser = await usersApi.getMe();
+
+      console.log("User profile fetched:", paramUser);
+
+      // Update auth store
+      login(paramUser, response.access_token, response.refresh_token);
       router.push("/dashboard");
     } catch (err: any) {
       // Log full error to console for debugging
@@ -69,13 +73,13 @@ export default function LoginPage() {
       console.error("Error response:", err.response);
       console.error("Error data:", err.response?.data);
       console.error("Error status:", err.response?.status);
-      
+
       // Handle different error formats from backend
       let errorMessage = "Login failed. Please try again.";
-      
+
       if (err.response?.data) {
         const detail = err.response.data.detail;
-        
+
         if (typeof detail === "string") {
           // String error message
           errorMessage = detail;
@@ -97,10 +101,10 @@ export default function LoginPage() {
         // Network or other errors
         errorMessage = err.message;
       }
-      
+
       console.error("Final error message:", errorMessage);
       setError(errorMessage);
-      
+
       // Show detailed alert
       window.alert("Login Error (Status " + (err.response?.status || "unknown") + "):\n\n" + errorMessage);
     } finally {
@@ -126,7 +130,7 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

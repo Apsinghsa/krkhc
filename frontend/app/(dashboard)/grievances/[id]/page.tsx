@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +61,8 @@ const priorityColors: Record<string, string> = {
   URGENT: "bg-red-100 text-red-800",
 };
 
-export default function GrievanceDetailPage({ params }: { params: { id: string } }) {
+export default function GrievanceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [grievance] = useState(mockGrievance);
 
   return (
@@ -141,9 +142,8 @@ export default function GrievanceDetailPage({ params }: { params: { id: string }
                 <div key={update.id} className="flex gap-4">
                   <div className="flex flex-col items-center">
                     <div
-                      className={`w-3 h-3 rounded-full ${
-                        index === 0 ? "bg-gray-300" : "bg-blue-500"
-                      }`}
+                      className={`w-3 h-3 rounded-full ${index === 0 ? "bg-gray-300" : "bg-blue-500"
+                        }`}
                     />
                     {index < grievance.updates.length - 1 && (
                       <div className="w-0.5 h-full bg-gray-200 mt-2" />
