@@ -62,7 +62,31 @@ export default function LoginPage() {
       login(user, response.access_token, response.refresh_token);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Login failed. Please try again.");
+      // Handle different error formats from backend
+      let errorMessage = "Login failed. Please try again.";
+      
+      if (err.response?.data) {
+        const detail = err.response.data.detail;
+        
+        if (typeof detail === "string") {
+          // String error message
+          errorMessage = detail;
+        } else if (Array.isArray(detail)) {
+          // Array of validation errors - join them
+          errorMessage = detail.map((e: any) => e.msg || JSON.stringify(e)).join(", ");
+        } else if (typeof detail === "object" && detail !== null) {
+          // Object error - convert to string
+          errorMessage = JSON.stringify(detail);
+        } else if (err.response.data.message) {
+          // Alternative message field
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.message) {
+        // Network or other errors
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
