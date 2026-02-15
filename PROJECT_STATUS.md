@@ -2,7 +2,13 @@
 
 **Created**: February 14, 2026  
 **Last Updated**: February 15, 2026  
-**Status**: ✅ **ALL 4 CORE PILLARS FUNCTIONAL** - Backend APIs Complete, Frontend Connected
+**Status**: ✅ **PRODUCTION DEPLOYED** - All 4 Core Pillars Live
+
+## 🌐 Production URLs
+
+- **Frontend**: https://aegis-protocol-krkhc.vercel.app
+- **Backend**: https://krkhc-production.up.railway.app
+- **API Docs**: https://krkhc-production.up.railway.app/docs
 
 ---
 
@@ -25,6 +31,23 @@
 
 ---
 
+## 🚀 Production Deployment
+
+### Railway + Vercel Setup
+- **Backend**: Deployed on Railway with Python 3.14
+- **Frontend**: Deployed on Vercel
+- **Database**: PostgreSQL on Railway
+- **Production CORS**: Configured for cross-origin requests
+- **Environment Variables**: Production-specific env vars configured
+
+### Deployment Features
+- Auto-deploy on git push
+- Production-grade logging
+- Health check endpoints
+- Database auto-migration on startup
+
+---
+
 ## ✅ COMPLETED WORK
 
 ### Phase 1: Foundation (COMPLETE) ✅
@@ -36,6 +59,18 @@
 - ✅ SQLAlchemy models created for all 4 pillars
 - ✅ Database tables initialized
 - ✅ Database reset utility for schema updates
+- ✅ Auto-table creation on startup (safe, won't delete data)
+
+**Database Improvements**:
+- ✅ Seed script creates multiple accounts per role (2 Faculty, 2 Authority, 2 Student)
+- ✅ Sample data for all 4 pillars (courses, grievances, opportunities)
+- ✅ Safe initialization - tables created automatically without data loss
+
+**File Storage**:
+- ✅ Local file storage configured in `/backend/uploads/`
+- ✅ Separate directories for: grievances, courses, opportunities, avatars
+- ✅ File upload endpoints implemented and working
+- ✅ S3 migration guide created (`MIGRATE_TO_S3.md`)
 
 **Frontend Components**:
 - ✅ shadcn/ui setup
@@ -165,6 +200,19 @@
 - POST /api/v1/opportunities/my/tasks - Create task
 - PUT /api/v1/opportunities/my/tasks/{id} - Update task
 - DELETE /api/v1/opportunities/my/tasks/{id} - Delete task
+
+### Phase 6: Latest Features (COMPLETE) ✅
+
+**UI Improvements**:
+- ✅ Department dropdown in registration and profile pages
+- ✅ Enhanced error handling for different backend error formats (string, array, object)
+- ✅ Debug logging for troubleshooting API issues
+- ✅ Production-ready CORS configuration
+
+**Developer Experience**:
+- ✅ Comprehensive seed data for testing
+- ✅ Multiple test accounts per role
+- ✅ S3 migration documentation
 
 ---
 
@@ -413,7 +461,7 @@ npm run dev
 ## 🐛 Known Issues
 
 1. ✅ **All critical issues resolved**
-2. File upload is UI-only (backend endpoints ready, need storage implementation)
+2. ✅ File upload working with local storage (S3 migration guide available)
 3. Next.js params now use React.use() for unwrapping (Next.js 16 requirement)
 
 ---
@@ -499,20 +547,23 @@ cd backend && uv add <package>
 
 All accounts use password: `password123`
 
-**Faculty**:
-- Email: faculty@iitmandi.ac.in
+**Faculty (2 accounts)**:
+- faculty1@iitmandi.ac.in
+- faculty2@iitmandi.ac.in
 - Can: Create courses, create opportunities, manage own content
 
-**Authority**:
-- Email: authority@iitmandi.ac.in
+**Authority (2 accounts)**:
+- authority1@iitmandi.ac.in
+- authority2@iitmandi.ac.in
 - Can: Manage all grievances, create opportunities
 
-**Student**:
-- Email: student@students.iitmandi.ac.in
+**Student (2 accounts)**:
+- student1@students.iitmandi.ac.in
+- student2@students.iitmandi.ac.in
 - Can: Submit grievances, enroll in courses, apply to opportunities
 
-**Admin**:
-- Email: admin@iitmandi.ac.in
+**Admin (1 account)**:
+- admin@iitmandi.ac.in
 - Can: Everything including user management
 
 ---
@@ -530,8 +581,8 @@ All accounts use password: `password123`
 
 ---
 
-**Document Version**: 2.0  
-**Status**: All 4 Core Pillars Complete ✅  
+**Document Version**: 2.1  
+**Status**: Production Deployed ✅  
 **Date**: February 15, 2026
 
 ---
@@ -542,7 +593,12 @@ All accounts use password: `password123`
 ✅ **Pillar II (Voice)**: Complete with grievance system  
 ✅ **Pillar III (Fate)**: Complete with course system  
 ✅ **Pillar IV (Opportunity)**: Complete with opportunities + task manager  
+✅ **Production**: Deployed on Railway + Vercel  
 
-**Total**: 4/4 Core Pillars Complete (100%)
+**Total**: 4/4 Core Pillars Complete (100%) + Production Live
+
+Live URLs:
+- Frontend: https://aegis-protocol-krkhc.vercel.app
+- Backend: https://krkhc-production.up.railway.app
 
 Ready for submission! 🚀
