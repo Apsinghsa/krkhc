@@ -48,7 +48,9 @@ export default function LoginPage() {
     setError("");
 
     try {
+      console.log("Attempting login with:", data.email);
       const response = await authApi.login(data.email, data.password);
+      console.log("Login successful");
       
       // Fetch user data (in production, the login response would include user data)
       // For now, we'll create a basic user object
@@ -62,6 +64,11 @@ export default function LoginPage() {
       login(user, response.access_token, response.refresh_token);
       router.push("/dashboard");
     } catch (err: any) {
+      // Log full error to console for debugging
+      console.error("Login error:", err);
+      console.error("Error response:", err.response);
+      console.error("Error data:", err.response?.data);
+      
       // Handle different error formats from backend
       let errorMessage = "Login failed. Please try again.";
       
@@ -86,7 +93,11 @@ export default function LoginPage() {
         errorMessage = err.message;
       }
       
+      console.error("Final error message:", errorMessage);
       setError(errorMessage);
+      
+      // Temporary: Show alert so error is visible before any reload
+      window.alert("Login Error: " + errorMessage);
     } finally {
       setIsLoading(false);
     }
