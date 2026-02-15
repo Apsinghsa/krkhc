@@ -68,8 +68,8 @@ export default function OpportunitiesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Opportunities</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-4xl font-bold text-primary uppercase tracking-tighter">Opportunities</h1>
+          <p className="text-muted-foreground mt-2 text-lg">
             Find internships and research positions
           </p>
         </div>
